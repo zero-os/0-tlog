@@ -1,0 +1,85 @@
+#%RAML 1.0
+title: "0-Tlog"
+description: "Tlog service API"
+version: 0.0.1
+mediaType: application/json
+
+
+securitySchemes:
+  itsyouonline: !include https://raw.githubusercontent.com/gig-cockpit/raml-definitions/master/securityScheme/iyo.raml
+
+types:
+
+  TlogEntryHeader:
+    properties:
+      timestamp:
+        type: integer
+        format: int64
+        description: unix timestamp when this entry has been created
+      hash:
+        type: string
+        description: Hash of the data. Used to validate integrity
+
+  TlogEntry:
+    properties:
+      header:
+        type: TlogEntryHeader
+      data:
+        type: string
+        description: Array of bytes
+
+
+securedBy: [ itsyouonline: {scopes: ["user:name"] } ]
+/logs:
+  post:
+    description: Add a tlog entry
+    displayName: CreateEntry
+    body:
+      type: TlogEntry
+    responses:
+      201:
+        description: Tlog entry created sucessfully
+  get:
+    displayName: GetLogEntries
+    description: Get a list of logs
+    queryParameters:
+      from:
+        type: integer
+        description: |
+          Unix timestamp from which we want the entry
+        required: true
+      to:
+        type: integer
+        description: |
+          Unix timestamp till which we want the entry.
+          if not specified, returns the log entries still now
+        required: false
+    responses:
+      200:
+        description: Log entries successfully returned
+        body:
+          type: TlogEntry[]
+      400:
+        description: Bas request, from is bigger then to
+
+/verify:
+  get:
+    displayName: VerifyLogEntries
+    description: |
+      Verify that the log entries are valid by computing hash of the logs and comparing it
+      with hash saved on the blockchain.
+    queryParameters:
+      to:
+        type: integer
+        description: |
+          Unix timestamp till which you want verify the entries
+          if not specified, verify all the existing entries
+        required: false
+    responses:
+      200:
+        description: All entries have been verified
+      400:
+        description: Bad request, some of the entries have failed verification
+        body:
+          description: Header of all the entries that failed verification
+          type: TlogEntryHeader[]
